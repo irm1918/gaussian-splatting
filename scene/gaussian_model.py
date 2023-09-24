@@ -22,8 +22,17 @@ from utils.graphics_utils import BasicPointCloud
 from utils.general_utils import strip_symmetric, build_scaling_rotation
 
 class GaussianModel:
+    """
+    This class represents the Gaussian Model used for real-time rendering of radiance fields using 3D
+    Gaussian splatting. It includes methods for setting up functions, capturing and restoring model states,
+    getting model parameters, and manipulating point cloud data.
+    """
 
     def setup_functions(self):
+        """
+        Sets up the necessary functions for the Gaussian Model. This includes scaling, rotation, and opacity
+        activations, as well as a function to build covariance from scaling and rotation.
+        """
         def build_covariance_from_scaling_rotation(scaling, scaling_modifier, rotation):
             L = build_scaling_rotation(scaling_modifier * scaling, rotation)
             actual_covariance = L @ L.transpose(1, 2)
@@ -42,6 +51,13 @@ class GaussianModel:
 
 
     def __init__(self, sh_degree : int):
+        """
+        Initializes the Gaussian Model with the given spherical harmonics degree. It also initializes the model
+        parameters and sets up the necessary functions.
+        
+        Args:
+            sh_degree (int): The degree of spherical harmonics to be used in the model.
+        """
         self.active_sh_degree = 0
         self.max_sh_degree = sh_degree  
         self._xyz = torch.empty(0)
@@ -59,6 +75,13 @@ class GaussianModel:
         self.setup_functions()
 
     def capture(self):
+        """
+        Captures the current state of the Gaussian Model. This includes the active spherical harmonics degree,
+        model parameters, optimizer state, and spatial learning rate scale.
+        
+        Returns:
+            tuple: A tuple containing the current state of the Gaussian Model.
+        """
         return (
             self.active_sh_degree,
             self._xyz,
@@ -75,6 +98,14 @@ class GaussianModel:
         )
     
     def restore(self, model_args, training_args):
+        """
+        Restores the Gaussian Model to a previous state using the given model and training arguments. It also
+        sets up the training environment using the given training arguments.
+        
+        Args:
+            model_args (tuple): A tuple containing the model arguments to restore the Gaussian Model state.
+            training_args (object): An object containing the training arguments to set up the training environment.
+        """
         (self.active_sh_degree, 
         self._xyz, 
         self._features_dc, 
@@ -94,34 +125,86 @@ class GaussianModel:
 
     @property
     def get_scaling(self):
+        """
+        Returns the scaling of the Gaussian Model after applying the scaling activation function.
+        
+        Returns:
+            tensor: A tensor representing the scaling of the Gaussian Model.
+        """
         return self.scaling_activation(self._scaling)
     
     @property
     def get_rotation(self):
+        """
+        Returns the rotation of the Gaussian Model after applying the rotation activation function.
+        
+        Returns:
+            tensor: A tensor representing the rotation of the Gaussian Model.
+        """
         return self.rotation_activation(self._rotation)
     
     @property
     def get_xyz(self):
+        """
+        Returns the xyz coordinates of the Gaussian Model.
+        
+        Returns:
+            tensor: A tensor representing the xyz coordinates of the Gaussian Model.
+        """
         return self._xyz
     
     @property
     def get_features(self):
+        """
+        Returns the features of the Gaussian Model by concatenating the DC and rest features.
+        
+        Returns:
+            tensor: A tensor representing the features of the Gaussian Model.
+        """
         features_dc = self._features_dc
         features_rest = self._features_rest
         return torch.cat((features_dc, features_rest), dim=1)
     
     @property
     def get_opacity(self):
+        """
+        Returns the opacity of the Gaussian Model after applying the opacity activation function.
+        
+        Returns:
+            tensor: A tensor representing the opacity of the Gaussian Model.
+        """
         return self.opacity_activation(self._opacity)
     
     def get_covariance(self, scaling_modifier = 1):
+        """
+        Returns the covariance of the Gaussian Model by applying the covariance activation function on the scaling
+        and rotation of the model.
+        
+        Args:
+            scaling_modifier (int, optional): A modifier for the scaling of the Gaussian Model. Defaults to 1.
+        
+        Returns:
+            tensor: A tensor representing the covariance of the Gaussian Model.
+        """
         return self.covariance_activation(self.get_scaling, scaling_modifier, self._rotation)
 
     def oneupSHdegree(self):
+        """
+        Increases the active spherical harmonics degree of the Gaussian Model by one, if it is less than the maximum
+        spherical harmonics degree.
+        """
         if self.active_sh_degree < self.max_sh_degree:
             self.active_sh_degree += 1
 
     def create_from_pcd(self, pcd : BasicPointCloud, spatial_lr_scale : float):
+        """
+        Creates the Gaussian Model from a given point cloud data (pcd). It also sets the spatial learning rate scale
+        of the model.
+        
+        Args:
+            pcd (BasicPointCloud): The point cloud data to create the Gaussian Model from.
+            spatial_lr_scale (float): The spatial learning rate scale to set for the Gaussian Model.
+        """
         self.spatial_lr_scale = spatial_lr_scale
         fused_point_cloud = torch.tensor(np.asarray(pcd.points)).float().cuda()
         fused_color = RGB2SH(torch.tensor(np.asarray(pcd.colors)).float().cuda())
@@ -147,6 +230,12 @@ class GaussianModel:
         self.max_radii2D = torch.zeros((self.get_xyz.shape[0]), device="cuda")
 
     def training_setup(self, training_args):
+        """
+        Sets up the training environment for the Gaussian Model using the given training arguments.
+        
+        Args:
+            training_args (object): An object containing the training arguments to set up the training environment.
+        """
         self.percent_dense = training_args.percent_dense
         self.xyz_gradient_accum = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
         self.denom = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
@@ -167,7 +256,15 @@ class GaussianModel:
                                                     max_steps=training_args.position_lr_max_steps)
 
     def update_learning_rate(self, iteration):
-        ''' Learning rate scheduling per step '''
+        """
+        Updates the learning rate of the Gaussian Model's optimizer for the given iteration.
+        
+        Args:
+            iteration (int): The current iteration to update the learning rate for.
+        
+        Returns:
+            float: The updated learning rate.
+        """
         for param_group in self.optimizer.param_groups:
             if param_group["name"] == "xyz":
                 lr = self.xyz_scheduler_args(iteration)
@@ -175,6 +272,13 @@ class GaussianModel:
                 return lr
 
     def construct_list_of_attributes(self):
+        """
+        Constructs a list of attributes for the Gaussian Model. This includes the xyz coordinates, features, opacity,
+        scaling, and rotation.
+        
+        Returns:
+            list: A list of attributes for the Gaussian Model.
+        """
         l = ['x', 'y', 'z', 'nx', 'ny', 'nz']
         # All channels except the 3 DC
         for i in range(self._features_dc.shape[1]*self._features_dc.shape[2]):
@@ -189,6 +293,12 @@ class GaussianModel:
         return l
 
     def save_ply(self, path):
+        """
+        Saves the Gaussian Model as a .ply file at the given path.
+        
+        Args:
+            path (str): The path to save the .ply file at.
+        """
         mkdir_p(os.path.dirname(path))
 
         xyz = self._xyz.detach().cpu().numpy()
@@ -208,11 +318,20 @@ class GaussianModel:
         PlyData([el]).write(path)
 
     def reset_opacity(self):
+        """
+        Resets the opacity of the Gaussian Model by replacing the opacity tensor in the optimizer with a new one.
+        """
         opacities_new = inverse_sigmoid(torch.min(self.get_opacity, torch.ones_like(self.get_opacity)*0.01))
         optimizable_tensors = self.replace_tensor_to_optimizer(opacities_new, "opacity")
         self._opacity = optimizable_tensors["opacity"]
 
     def load_ply(self, path):
+        """
+        Loads the Gaussian Model from a .ply file at the given path.
+        
+        Args:
+            path (str): The path to load the .ply file from.
+        """
         plydata = PlyData.read(path)
 
         xyz = np.stack((np.asarray(plydata.elements[0]["x"]),
@@ -256,6 +375,16 @@ class GaussianModel:
         self.active_sh_degree = self.max_sh_degree
 
     def replace_tensor_to_optimizer(self, tensor, name):
+        """
+        Replaces a tensor in the Gaussian Model's optimizer with a new one. The new tensor is also made optimizable.
+        
+        Args:
+            tensor (tensor): The new tensor to replace the existing one with.
+            name (str): The name of the tensor to replace.
+        
+        Returns:
+            dict: A dictionary containing the optimizable tensors of the Gaussian Model.
+        """
         optimizable_tensors = {}
         for group in self.optimizer.param_groups:
             if group["name"] == name:
@@ -271,6 +400,16 @@ class GaussianModel:
         return optimizable_tensors
 
     def _prune_optimizer(self, mask):
+        """
+        Prunes the Gaussian Model's optimizer using the given mask. This involves replacing the existing tensors in
+        the optimizer with new ones that only contain the valid points.
+        
+        Args:
+            mask (tensor): A mask indicating the valid points in the Gaussian Model.
+        
+        Returns:
+            dict: A dictionary containing the optimizable tensors of the Gaussian Model.
+        """
         optimizable_tensors = {}
         for group in self.optimizer.param_groups:
             stored_state = self.optimizer.state.get(group['params'][0], None)
@@ -289,6 +428,13 @@ class GaussianModel:
         return optimizable_tensors
 
     def prune_points(self, mask):
+        """
+        Prunes the points of the Gaussian Model using the given mask. This involves replacing the existing tensors in
+        the model with new ones that only contain the valid points.
+        
+        Args:
+            mask (tensor): A mask indicating the valid points in the Gaussian Model.
+        """
         valid_points_mask = ~mask
         optimizable_tensors = self._prune_optimizer(valid_points_mask)
 

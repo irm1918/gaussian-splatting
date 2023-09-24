@@ -15,6 +15,9 @@ class LPIPS(nn.Module):
         version (str): the version of LPIPS. Default: 0.1.
     """
     def __init__(self, net_type: str = 'alex', version: str = '0.1'):
+        """
+        Initializes the LPIPS class with a network type and version.
+        """
 
         assert version in ['0.1'], 'v0.1 is only supported now'
 
@@ -28,6 +31,21 @@ class LPIPS(nn.Module):
         self.lin.load_state_dict(get_state_dict(net_type, version))
 
     def forward(self, x: torch.Tensor, y: torch.Tensor):
+        """
+        Computes the LPIPS between two images.
+        
+        This method takes two images as input and computes the LPIPS between them. It first 
+        extracts the features of the images using the pretrained network, then computes the 
+        difference between the features, and finally applies the linear layers to the 
+        difference and averages the result.
+        
+        Args:
+            x (torch.Tensor): The first image.
+            y (torch.Tensor): The second image.
+        
+        Returns:
+            torch.Tensor: The LPIPS between the two images.
+        """
         feat_x, feat_y = self.net(x), self.net(y)
 
         diff = [(fx - fy) ** 2 for fx, fy in zip(feat_x, feat_y)]

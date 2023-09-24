@@ -24,6 +24,21 @@ from utils.sh_utils import SH2RGB
 from scene.gaussian_model import BasicPointCloud
 
 class CameraInfo(NamedTuple):
+    """
+    A NamedTuple representing the camera information.
+    
+    Attributes:
+        uid (int): Unique identifier for the camera.
+        R (np.array): Rotation matrix of the camera.
+        T (np.array): Translation vector of the camera.
+        FovY (np.array): Field of view in the Y direction.
+        FovX (np.array): Field of view in the X direction.
+        image (np.array): Image captured by the camera.
+        image_path (str): Path to the image file.
+        image_name (str): Name of the image file.
+        width (int): Width of the image.
+        height (int): Height of the image.
+    """
     uid: int
     R: np.array
     T: np.array
@@ -36,6 +51,16 @@ class CameraInfo(NamedTuple):
     height: int
 
 class SceneInfo(NamedTuple):
+    """
+    A NamedTuple representing the scene information.
+    
+    Attributes:
+        point_cloud (BasicPointCloud): Point cloud representing the scene.
+        train_cameras (list): List of cameras used for training.
+        test_cameras (list): List of cameras used for testing.
+        nerf_normalization (dict): Normalization parameters for NeRF.
+        ply_path (str): Path to the .ply file representing the scene.
+    """
     point_cloud: BasicPointCloud
     train_cameras: list
     test_cameras: list
@@ -43,6 +68,15 @@ class SceneInfo(NamedTuple):
     ply_path: str
 
 def getNerfppNorm(cam_info):
+    """
+    Computes the center and diagonal of the bounding box enclosing the camera centers.
+    
+    Args:
+        cam_info (list): List of CameraInfo objects.
+    
+    Returns:
+        dict: Dictionary containing the translation vector and radius of the bounding sphere.
+    """
     def get_center_and_diag(cam_centers):
         cam_centers = np.hstack(cam_centers)
         avg_cam_center = np.mean(cam_centers, axis=1, keepdims=True)
@@ -66,6 +100,17 @@ def getNerfppNorm(cam_info):
     return {"translate": translate, "radius": radius}
 
 def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
+    """
+    Reads camera information from COLMAP extrinsics and intrinsics.
+    
+    Args:
+        cam_extrinsics (dict): Dictionary of camera extrinsics.
+        cam_intrinsics (dict): Dictionary of camera intrinsics.
+        images_folder (str): Path to the folder containing the images.
+    
+    Returns:
+        list: List of CameraInfo objects.
+    """
     cam_infos = []
     for idx, key in enumerate(cam_extrinsics):
         sys.stdout.write('\r')
@@ -105,6 +150,15 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
     return cam_infos
 
 def fetchPly(path):
+    """
+    Reads a .ply file and returns a BasicPointCloud object.
+    
+    Args:
+        path (str): Path to the .ply file.
+    
+    Returns:
+        BasicPointCloud: Point cloud representing the scene.
+    """
     plydata = PlyData.read(path)
     vertices = plydata['vertex']
     positions = np.vstack([vertices['x'], vertices['y'], vertices['z']]).T
@@ -113,6 +167,14 @@ def fetchPly(path):
     return BasicPointCloud(points=positions, colors=colors, normals=normals)
 
 def storePly(path, xyz, rgb):
+    """
+    Stores a point cloud as a .ply file.
+    
+    Args:
+        path (str): Path to the .ply file.
+        xyz (np.array): 3D coordinates of the points.
+        rgb (np.array): RGB colors of the points.
+    """
     # Define the dtype for the structured array
     dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4'),
             ('nx', 'f4'), ('ny', 'f4'), ('nz', 'f4'),
@@ -130,6 +192,18 @@ def storePly(path, xyz, rgb):
     ply_data.write(path)
 
 def readColmapSceneInfo(path, images, eval, llffhold=8):
+    """
+    Reads scene information from COLMAP files.
+    
+    Args:
+        path (str): Path to the COLMAP files.
+        images (str): Path to the images.
+        eval (bool): Whether to split the cameras into training and testing sets.
+        llffhold (int): Interval for selecting test cameras.
+    
+    Returns:
+        SceneInfo: Scene information.
+    """
     try:
         cameras_extrinsic_file = os.path.join(path, "sparse/0", "images.bin")
         cameras_intrinsic_file = os.path.join(path, "sparse/0", "cameras.bin")
@@ -177,6 +251,18 @@ def readColmapSceneInfo(path, images, eval, llffhold=8):
     return scene_info
 
 def readCamerasFromTransforms(path, transformsfile, white_background, extension=".png"):
+    """
+    Reads camera information from a transforms file.
+    
+    Args:
+        path (str): Path to the transforms file.
+        transformsfile (str): Name of the transforms file.
+        white_background (bool): Whether the images have a white background.
+        extension (str): Extension of the image files.
+    
+    Returns:
+        list: List of CameraInfo objects.
+    """
     cam_infos = []
 
     with open(os.path.join(path, transformsfile)) as json_file:
@@ -219,6 +305,18 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
     return cam_infos
 
 def readNerfSyntheticInfo(path, white_background, eval, extension=".png"):
+    """
+    Reads scene information from NeRF synthetic data.
+    
+    Args:
+        path (str): Path to the NeRF synthetic data.
+        white_background (bool): Whether the images have a white background.
+        eval (bool): Whether to split the cameras into training and testing sets.
+        extension (str): Extension of the image files.
+    
+    Returns:
+        SceneInfo: Scene information.
+    """
     print("Reading Training Transforms")
     train_cam_infos = readCamerasFromTransforms(path, "transforms_train.json", white_background, extension)
     print("Reading Test Transforms")

@@ -57,6 +57,23 @@ class Camera(nn.Module):
         self.camera_center = self.world_view_transform.inverse()[3, :3]
 
 class MiniCam:
+    """
+    The MiniCam class represents a simplified version of the Camera class, containing only the 
+    essential parameters needed for rendering. It includes parameters such as the camera's field 
+    of view, image dimensions, and transformation matrices.
+    
+    Args:
+        width (int): The width of the image captured by the camera.
+        height (int): The height of the image captured by the camera.
+        fovy (float): The vertical field of view of the camera.
+        fovx (float): The horizontal field of view of the camera.
+        znear (float): The near clipping plane of the camera.
+        zfar (float): The far clipping plane of the camera.
+        world_view_transform (torch.Tensor): The transformation matrix from world coordinates to 
+                                             view coordinates.
+        full_proj_transform (torch.Tensor): The full projection transformation matrix from world 
+                                            coordinates to image coordinates.
+    """
     def __init__(self, width, height, fovy, fovx, znear, zfar, world_view_transform, full_proj_transform):
         self.image_width = width
         self.image_height = height    

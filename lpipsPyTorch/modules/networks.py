@@ -10,6 +10,15 @@ from .utils import normalize_activation
 
 
 def get_network(net_type: str):
+    """
+    Returns the network model based on the provided network type.
+    
+    Args:
+        net_type (str): The type of the network. It can be 'alex', 'squeeze', or 'vgg'.
+        
+    Raises:
+        NotImplementedError: If the provided network type is not supported.
+    """
     if net_type == 'alex':
         return AlexNet()
     elif net_type == 'squeeze':
@@ -22,6 +31,9 @@ def get_network(net_type: str):
 
 class LinLayers(nn.ModuleList):
     def __init__(self, n_channels_list: Sequence[int]):
+        """
+        Initializes the LinLayers class.
+        """
         super(LinLayers, self).__init__([
             nn.Sequential(
                 nn.Identity(),
@@ -35,6 +47,9 @@ class LinLayers(nn.ModuleList):
 
 class BaseNet(nn.Module):
     def __init__(self):
+        """
+        Initializes the BaseNet class.
+        """
         super(BaseNet, self).__init__()
 
         # register buffer
@@ -44,13 +59,31 @@ class BaseNet(nn.Module):
             'std', torch.Tensor([.458, .448, .450])[None, :, None, None])
 
     def set_requires_grad(self, state: bool):
+        """
+        Sets the requires_grad attribute for all parameters and buffers in the network.
+        
+        Args:
+            state (bool): The state to set the requires_grad attribute to.
+        """
         for param in chain(self.parameters(), self.buffers()):
             param.requires_grad = state
 
     def z_score(self, x: torch.Tensor):
+        """
+        Normalizes the input tensor using the z-score method.
+        
+        Args:
+            x (torch.Tensor): The input tensor to normalize.
+        """
         return (x - self.mean) / self.std
 
     def forward(self, x: torch.Tensor):
+        """
+        Defines the computation performed at every call.
+        
+        Args:
+            x (torch.Tensor): The input tensor.
+        """
         x = self.z_score(x)
 
         output = []
@@ -64,7 +97,13 @@ class BaseNet(nn.Module):
 
 
 class SqueezeNet(BaseNet):
+    """
+    A class that represents the SqueezeNet model. Inherits from the BaseNet class.
+    """
     def __init__(self):
+        """
+        Initializes the SqueezeNet class.
+        """
         super(SqueezeNet, self).__init__()
 
         self.layers = models.squeezenet1_1(True).features
@@ -75,7 +114,13 @@ class SqueezeNet(BaseNet):
 
 
 class AlexNet(BaseNet):
+    """
+    A class that represents the AlexNet model. Inherits from the BaseNet class.
+    """
     def __init__(self):
+        """
+        Initializes the AlexNet class.
+        """
         super(AlexNet, self).__init__()
 
         self.layers = models.alexnet(True).features
@@ -86,7 +131,13 @@ class AlexNet(BaseNet):
 
 
 class VGG16(BaseNet):
+    """
+    A class that represents the VGG16 model. Inherits from the BaseNet class.
+    """
     def __init__(self):
+        """
+        Initializes the VGG16 class.
+        """
         super(VGG16, self).__init__()
 
         self.layers = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1).features

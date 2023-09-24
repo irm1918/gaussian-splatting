@@ -41,6 +41,15 @@ CAMERA_MODEL_NAMES = dict([(camera_model.model_name, camera_model)
 
 
 def qvec2rotmat(qvec):
+    """
+    Converts a quaternion vector to a rotation matrix.
+    
+    Args:
+        qvec (list): Quaternion vector.
+    
+    Returns:
+        np.array: 3x3 rotation matrix.
+    """
     return np.array([
         [1 - 2 * qvec[2]**2 - 2 * qvec[3]**2,
          2 * qvec[1] * qvec[2] - 2 * qvec[0] * qvec[3],
@@ -53,6 +62,15 @@ def qvec2rotmat(qvec):
          1 - 2 * qvec[1]**2 - 2 * qvec[2]**2]])
 
 def rotmat2qvec(R):
+    """
+    Converts a rotation matrix to a quaternion vector.
+    
+    Args:
+        R (np.array): 3x3 rotation matrix.
+    
+    Returns:
+        np.array: Quaternion vector.
+    """
     Rxx, Ryx, Rzx, Rxy, Ryy, Rzy, Rxz, Ryz, Rzz = R.flat
     K = np.array([
         [Rxx - Ryy - Rzz, 0, 0, 0],
@@ -67,24 +85,39 @@ def rotmat2qvec(R):
 
 class Image(BaseImage):
     def qvec2rotmat(self):
+        """
+        Converts the image's quaternion vector to a rotation matrix.
+        
+        Returns:
+            np.array: 3x3 rotation matrix.
+        """
         return qvec2rotmat(self.qvec)
 
 def read_next_bytes(fid, num_bytes, format_char_sequence, endian_character="<"):
-    """Read and unpack the next bytes from a binary file.
-    :param fid:
-    :param num_bytes: Sum of combination of {2, 4, 8}, e.g. 2, 6, 16, 30, etc.
-    :param format_char_sequence: List of {c, e, f, d, h, H, i, I, l, L, q, Q}.
-    :param endian_character: Any of {@, =, <, >, !}
-    :return: Tuple of read and unpacked values.
+    """
+    Reads and unpacks the next bytes from a binary file.
+    
+    Args:
+        fid (file): Binary file.
+        num_bytes (int): Number of bytes to read.
+        format_char_sequence (str): Format characters for struct.unpack.
+        endian_character (str, optional): Endian character for struct.unpack. Defaults to "<".
+    
+    Returns:
+        tuple: Unpacked values.
     """
     data = fid.read(num_bytes)
     return struct.unpack(endian_character + format_char_sequence, data)
 
 def read_points3D_text(path):
     """
-    see: src/base/reconstruction.cc
-        void Reconstruction::ReadPoints3DText(const std::string& path)
-        void Reconstruction::WritePoints3DText(const std::string& path)
+    Reads 3D points from a text file.
+    
+    Args:
+        path (str): Path to the text file.
+    
+    Returns:
+        tuple: Arrays of 3D coordinates, RGB colors, and errors.
     """
     xyzs = None
     rgbs = None
@@ -124,9 +157,13 @@ def read_points3D_text(path):
 
 def read_points3D_binary(path_to_model_file):
     """
-    see: src/base/reconstruction.cc
-        void Reconstruction::ReadPoints3DBinary(const std::string& path)
-        void Reconstruction::WritePoints3DBinary(const std::string& path)
+    Reads 3D points from a binary file.
+    
+    Args:
+        path_to_model_file (str): Path to the binary file.
+    
+    Returns:
+        tuple: Arrays of 3D coordinates, RGB colors, and errors.
     """
 
 
@@ -155,7 +192,13 @@ def read_points3D_binary(path_to_model_file):
 
 def read_intrinsics_text(path):
     """
-    Taken from https://github.com/colmap/colmap/blob/dev/scripts/python/read_write_model.py
+    Reads camera intrinsics from a text file.
+    
+    Args:
+        path (str): Path to the text file.
+    
+    Returns:
+        dict: Dictionary of cameras.
     """
     cameras = {}
     with open(path, "r") as fid:
@@ -179,9 +222,13 @@ def read_intrinsics_text(path):
 
 def read_extrinsics_binary(path_to_model_file):
     """
-    see: src/base/reconstruction.cc
-        void Reconstruction::ReadImagesBinary(const std::string& path)
-        void Reconstruction::WriteImagesBinary(const std::string& path)
+    Reads camera extrinsics from a binary file.
+    
+    Args:
+        path_to_model_file (str): Path to the binary file.
+    
+    Returns:
+        dict: Dictionary of images.
     """
     images = {}
     with open(path_to_model_file, "rb") as fid:
@@ -214,9 +261,13 @@ def read_extrinsics_binary(path_to_model_file):
 
 def read_intrinsics_binary(path_to_model_file):
     """
-    see: src/base/reconstruction.cc
-        void Reconstruction::WriteCamerasBinary(const std::string& path)
-        void Reconstruction::ReadCamerasBinary(const std::string& path)
+    Reads camera intrinsics from a binary file.
+    
+    Args:
+        path_to_model_file (str): Path to the binary file.
+    
+    Returns:
+        dict: Dictionary of cameras.
     """
     cameras = {}
     with open(path_to_model_file, "rb") as fid:
@@ -243,7 +294,13 @@ def read_intrinsics_binary(path_to_model_file):
 
 def read_extrinsics_text(path):
     """
-    Taken from https://github.com/colmap/colmap/blob/dev/scripts/python/read_write_model.py
+    Reads camera extrinsics from a text file.
+    
+    Args:
+        path (str): Path to the text file.
+    
+    Returns:
+        dict: Dictionary of images.
     """
     images = {}
     with open(path, "r") as fid:
@@ -272,10 +329,13 @@ def read_extrinsics_text(path):
 
 def read_colmap_bin_array(path):
     """
-    Taken from https://github.com/colmap/colmap/blob/dev/scripts/python/read_dense.py
-
-    :param path: path to the colmap binary file.
-    :return: nd array with the floating point values in the value
+    Reads a binary array from a COLMAP file.
+    
+    Args:
+        path (str): Path to the COLMAP file.
+    
+    Returns:
+        np.array: Array with the floating point values in the file.
     """
     with open(path, "rb") as fid:
         width, height, channels = np.genfromtxt(fid, delimiter="&", max_rows=1,
